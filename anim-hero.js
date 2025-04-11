@@ -30,9 +30,9 @@ const createDotsCanvas = () => {
     inactiveColor: getComputedStyle(document.documentElement).getPropertyValue(
       "--base-color-brand--dot-inactive"
     ),
-    glowSize: 15,
-    glowIntensity: 1,
-    glowColor: "#FFE664",
+    // glowSize: 15,
+    // glowIntensity: 1,
+    // glowColor: "#FFE664",
   };
 
   // Dessiner les dots
@@ -105,61 +105,63 @@ if (!canvasSetup) {
       ctx.fillStyle = getRGBA(color, opacity);
       ctx.fill();
     }
-    
+
     function createDotAnimation(x, y, baseRadius, hoverRadius) {
       const key = `${x},${y}`;
       const existingAnimation = dotAnimations.get(key);
-    
+
       // Si une animation existe déjà pour ce dot, on la garde
       if (existingAnimation) {
         existingAnimation.hoverRadius = hoverRadius;
         return existingAnimation;
       }
-    
+
       const dotState = {
-        currentRadius: baseRadius,
+        currentRadius: baseRadius, // On démarre de la taille de base
         baseRadius: baseRadius,
         hoverRadius: hoverRadius,
-        scale: 0
+        scale: 0, // On démarre à scale 0
       };
-    
-      // Animation initiale rapide
+
+      // Animation initiale rapide avec easing
       gsap.to(dotState, {
         scale: 1,
-        duration: 0.1, // Très rapide mais avec le même easing
-        ease: "power2.inOut",
+        duration: 0.4,
+        ease: "power2.out",
         onUpdate: () => {
-          dotState.currentRadius = dotState.baseRadius + (dotState.hoverRadius - dotState.baseRadius) * dotState.scale;
-        }
+          dotState.currentRadius =
+            dotState.baseRadius +
+            (dotState.hoverRadius - dotState.baseRadius) * dotState.scale;
+        },
       });
-    
+
       // Animation en boucle avec délai aléatoire
       const timeline = gsap.timeline({
         repeat: -1,
         delay: Math.random() * 2,
         onUpdate: () => {
-          dotState.currentRadius = dotState.baseRadius + (dotState.hoverRadius - dotState.baseRadius) * dotState.scale;
-        }
+          dotState.currentRadius =
+            dotState.baseRadius +
+            (dotState.hoverRadius - dotState.baseRadius) * dotState.scale;
+        },
       });
-    
+
       timeline
         .to(dotState, {
           scale: 1,
           duration: 1,
-          ease: "power2.inOut"
+          ease: "power2.inOut",
         })
         .to(dotState, {
           scale: 0,
           duration: 1,
-          ease: "power2.inOut"
+          ease: "power2.inOut",
         });
-    
+
       dotState.timeline = timeline;
       dotAnimations.set(key, dotState);
       return dotState;
     }
-    
-    
 
     function drawDots() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
