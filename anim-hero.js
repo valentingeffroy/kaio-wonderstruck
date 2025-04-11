@@ -40,7 +40,7 @@ const createDotsCanvas = () => {
     for (let y = config.dotSpacing; y < canvas.height; y += config.dotSpacing) {
       ctx.beginPath();
       ctx.arc(x, y, config.baseDotRadius * 0.2, 0, Math.PI * 2); // Scale initial de 0.2
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
       ctx.fill();
     }
   }
@@ -69,6 +69,9 @@ if (!canvasSetup) {
     let headerBounds = { x: 0, y: 0, width: 0, height: 0 };
     let animationFrame;
 
+    // Stocker les animations en cours pour chaque dot
+    const dotAnimations = new Map(); // clé: "x,y", valeur: { tween, baseRadius }
+
     function getRGBA(color, alpha = 1) {
       const tempDiv = document.createElement("div");
       tempDiv.style.color = color;
@@ -96,23 +99,67 @@ if (!canvasSetup) {
       };
     }
 
-    function drawDot(x, y, radius, color, opacity, glow = false) {
+    function drawDot(x, y, radius, color, opacity) {
       ctx.beginPath();
-
-      if (glow) {
-        ctx.shadowBlur = config.glowSize;
-        ctx.shadowColor = config.glowColor;
-      }
-
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fillStyle = getRGBA(color, opacity);
       ctx.fill();
-
-      if (glow) {
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = "transparent";
-      }
     }
+    
+    function createDotAnimation(x, y, baseRadius, hoverRadius) {
+      const key = `${x},${y}`;
+      const existingAnimation = dotAnimations.get(key);
+    
+      // Si une animation existe déjà pour ce dot, on la garde
+      if (existingAnimation) {
+        existingAnimation.hoverRadius = hoverRadius;
+        return existingAnimation;
+      }
+    
+      const dotState = {
+        currentRadius: baseRadius,
+        baseRadius: baseRadius,
+        hoverRadius: hoverRadius,
+        scale: 0
+      };
+    
+      // Animation initiale rapide
+      gsap.to(dotState, {
+        scale: 1,
+        duration: 0.1, // Très rapide mais avec le même easing
+        ease: "power2.inOut",
+        onUpdate: () => {
+          dotState.currentRadius = dotState.baseRadius + (dotState.hoverRadius - dotState.baseRadius) * dotState.scale;
+        }
+      });
+    
+      // Animation en boucle avec délai aléatoire
+      const timeline = gsap.timeline({
+        repeat: -1,
+        delay: Math.random() * 2,
+        onUpdate: () => {
+          dotState.currentRadius = dotState.baseRadius + (dotState.hoverRadius - dotState.baseRadius) * dotState.scale;
+        }
+      });
+    
+      timeline
+        .to(dotState, {
+          scale: 1,
+          duration: 1,
+          ease: "power2.inOut"
+        })
+        .to(dotState, {
+          scale: 0,
+          duration: 1,
+          ease: "power2.inOut"
+        });
+    
+      dotState.timeline = timeline;
+      dotAnimations.set(key, dotState);
+      return dotState;
+    }
+    
+    
 
     function drawDots() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -122,6 +169,9 @@ if (!canvasSetup) {
       const headerInfluenceRadius =
         Math.max(headerBounds.width, headerBounds.height) *
         config.headerInfluenceRadius;
+
+      // Stocker les dots actifs pour nettoyer les animations inactives
+      const activeDots = new Set();
 
       for (
         let x = config.dotSpacing;
@@ -133,6 +183,7 @@ if (!canvasSetup) {
           y < canvas.height;
           y += config.dotSpacing
         ) {
+          const key = `${x},${y}`;
           const distToMouse = Math.sqrt(
             Math.pow(x - mousePosition.x, 2) + Math.pow(y - mousePosition.y, 2)
           );
@@ -141,17 +192,33 @@ if (!canvasSetup) {
             Math.pow(x - headerCenterX, 2) + Math.pow(y - headerCenterY, 2)
           );
 
-          let dotRadius = config.baseDotRadius;
+          let baseRadius = config.baseDotRadius;
           let currentColor = config.inactiveColor;
-          let isHovered = false;
 
           if (distToMouse < config.mouseInfluenceRadius) {
             const scale = 1 - distToMouse / config.mouseInfluenceRadius;
-            dotRadius =
+            const hoverRadius =
               config.baseDotRadius +
               (config.maxDotRadius - config.baseDotRadius) * scale;
             currentColor = config.activeColor;
-            isHovered = true;
+
+            // On passe la taille calculée à l'animation
+            const dotState = createDotAnimation(
+              x,
+              y,
+              config.baseDotRadius,
+              hoverRadius
+            );
+            activeDots.add(key);
+
+            baseRadius = dotState.currentRadius;
+          } else {
+            // Si le dot n'est plus survolé, arrêter son animation
+            const existingAnimation = dotAnimations.get(key);
+            if (existingAnimation) {
+              existingAnimation.timeline.kill();
+              dotAnimations.delete(key);
+            }
           }
 
           let opacity = 1;
@@ -159,7 +226,15 @@ if (!canvasSetup) {
             opacity = distToHeader / headerInfluenceRadius;
           }
 
-          drawDot(x, y, dotRadius, currentColor, opacity, isHovered);
+          drawDot(x, y, baseRadius, currentColor, opacity);
+        }
+      }
+
+      // Nettoyer les animations des dots qui ne sont plus actifs
+      for (const [key, animation] of dotAnimations.entries()) {
+        if (!activeDots.has(key)) {
+          animation.timeline.kill();
+          dotAnimations.delete(key);
         }
       }
 
@@ -186,6 +261,9 @@ if (!canvasSetup) {
         if (dotsAnimation) {
           dotsAnimation.removeEventListener("mousemove", handleMouseMove);
         }
+        // Nettoyer toutes les animations
+        dotAnimations.forEach((animation) => animation.timeline.kill());
+        dotAnimations.clear();
       },
     };
   };
