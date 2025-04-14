@@ -74,15 +74,15 @@ if (!canvasSetup) {
 
     function getRGBA(color, alpha = 1) {
       if (color === config.activeColor) {
-        return '#FFE664'; // Utilisation directe de la couleur hex pour les dots actifs
+        return "#fcf8d8"; // Utilisation directe de la couleur hex pour les dots actifs
       }
-      
+
       const tempDiv = document.createElement("div");
       tempDiv.style.color = color;
       document.body.appendChild(tempDiv);
       const computedColor = getComputedStyle(tempDiv).color;
       document.body.removeChild(tempDiv);
-    
+
       const match = computedColor.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
       if (match) {
         return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${alpha})`;
@@ -142,7 +142,7 @@ if (!canvasSetup) {
       // Animation en boucle avec délai aléatoire
       const timeline = gsap.timeline({
         repeat: -1,
-        delay: Math.random() * 2,
+        delay: Math.random() * 1,
         onUpdate: () => {
           dotState.currentRadius =
             dotState.baseRadius +
@@ -248,7 +248,10 @@ if (!canvasSetup) {
     }
 
     function handleMouseMove(e) {
-      mousePosition = { x: e.clientX, y: e.clientY };
+      mousePosition = {
+        x: e.clientX,
+        y: e.clientY + window.scrollY
+      };
     }
 
     // Initialisation
