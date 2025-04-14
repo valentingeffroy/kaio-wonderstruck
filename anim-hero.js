@@ -73,12 +73,16 @@ if (!canvasSetup) {
     const dotAnimations = new Map(); // clé: "x,y", valeur: { tween, baseRadius }
 
     function getRGBA(color, alpha = 1) {
+      if (color === config.activeColor) {
+        return '#FFE664'; // Utilisation directe de la couleur hex pour les dots actifs
+      }
+      
       const tempDiv = document.createElement("div");
       tempDiv.style.color = color;
       document.body.appendChild(tempDiv);
       const computedColor = getComputedStyle(tempDiv).color;
       document.body.removeChild(tempDiv);
-
+    
       const match = computedColor.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
       if (match) {
         return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${alpha})`;
